@@ -168,7 +168,7 @@ namespace Condominio_API.Migrations
 
                     b.Property<string>("NivelAcesso")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasColumnType("int");
 
                     b.Property<string>("Nome")
                         .IsRequired()

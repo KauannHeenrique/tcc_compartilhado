@@ -21,7 +21,7 @@ namespace condominio_API.Models
         [Required]
         public required string Senha { get; set; }   
         [Required]
-        public required string NivelAcesso { get; set; } // pode ser morador, funcionario ou sindico 
+        public nivelAcessoEnum NivelAcesso { get; set; } // usando tipo enum para garantir valores validos 
 
         [Required]
         public string? Telefone { get; set; }
@@ -38,4 +38,12 @@ namespace condominio_API.Models
         [Required]
         public bool Status { get; set; }
     }
+    public enum nivelAcessoEnum
+    {
+        Admin = 1,
+        Sindico = 2,
+        Funcionario = 3,
+        Morador = 4
+    }
+
 }

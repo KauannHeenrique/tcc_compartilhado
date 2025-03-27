@@ -72,7 +72,7 @@ namespace condominio_API.Controllers
 
                 if (apartamentoFirst != null)
                 {
-                    return BadRequest(new { mensagem = "Este livro já está cadastrado no acervo!" });
+                    return BadRequest(new { mensagem = "Este apartamento já está cadastrado!" });
                 }
 
                 _context.Apartamentos.Add(novoApartamento);
