@@ -19,9 +19,9 @@ namespace condominio_API.Controllers
 
         [HttpGet("ExibirTodosUsuarios")]
 
-        public async Task<ActionResult<IEnumerable<Apartamento>>> GetApartamento()
+        public async Task<ActionResult<IEnumerable<Usuario>>> GetTodosUsuarios()
         {
-            return await _context.Apartamentos.ToListAsync();
+            return await _context.Usuarios.ToListAsync();
         }
 
         [HttpGet("BuscarUsuarioPor")]
@@ -99,30 +99,68 @@ namespace condominio_API.Controllers
         }
 
         [HttpPut("AtualizarUsuario/{id}")]
-        public async Task<IActionResult> PutUsuario(int id, Usuario usuario)
+        public async Task<IActionResult> PutUsuario(int id, [FromBody] Usuario usuario)
         {
             if (id <= 0)
             {
                 return BadRequest("Usuário inválido.");
             }
 
-            var usuarioEx = await _context.Usuarios.FindAsync(id);
+            var usuarioTemp = await _context.Usuarios.FindAsync(id);
 
-            if (usuarioEx == null)
+            if (usuarioTemp == null)
             {
                 return NotFound();
             }
 
-            usuarioEx.Nome = usuario.Nome;
-            usuarioEx.Documento = usuario.Documento;
-            usuarioEx.Email = usuario.Email;
-            usuarioEx.Senha = usuario.Senha;
-            usuarioEx.Telefone = usuario.Telefone;
-            usuarioEx.ApartamentoId = usuario.ApartamentoId;
-            usuarioEx.CodigoRFID = usuario.CodigoRFID;
-            usuarioEx.Status = usuario.Status;
+            if (!string.IsNullOrEmpty(usuario.Nome) && usuario.Nome != "string" && usuarioTemp.Nome != usuario.Nome)
+            {
+                usuarioTemp.Nome = usuario.Nome;
+                _context.Entry(usuarioTemp).Property(user => user.Nome).IsModified = true;
+            }
 
-            _context.Usuarios.Update(usuarioEx);
+            if (!string.IsNullOrEmpty(usuario.Documento) && usuario.Documento != "string" && usuarioTemp.Documento != usuario.Documento)
+            {
+                usuarioTemp.Documento = usuario.Documento;
+                _context.Entry(usuarioTemp).Property(user => user.Documento).IsModified = true;
+            }
+
+            if (!string.IsNullOrEmpty(usuario.Email) && usuario.Email != "string" && usuarioTemp.Email != usuario.Email)
+            {
+                usuarioTemp.Email = usuario.Email;
+                _context.Entry(usuarioTemp).Property(user => user.Email).IsModified = true;
+            }
+
+            if (!string.IsNullOrEmpty(usuario.Senha) && usuario.Senha != "string" && usuarioTemp.Senha != usuario.Senha)
+            {
+                usuarioTemp.Senha = usuario.Senha;
+                _context.Entry(usuarioTemp).Property(user => user.Senha).IsModified = true;
+            }
+
+            if (!string.IsNullOrEmpty(usuario.Telefone) && usuario.Telefone != "string" && usuarioTemp.Telefone != usuario.Telefone)
+            {
+                usuarioTemp.Telefone = usuario.Telefone;
+                _context.Entry(usuarioTemp).Property(user => user.Telefone).IsModified = true;
+            }
+
+            if (usuario.ApartamentoId > 0 && usuarioTemp.ApartamentoId != usuario.ApartamentoId)
+            {
+                usuarioTemp.ApartamentoId = usuario.ApartamentoId;
+                _context.Entry(usuarioTemp).Property(user => user.ApartamentoId).IsModified = true;
+            }
+
+            if (!string.IsNullOrEmpty(usuario.CodigoRFID) && usuario.CodigoRFID != "string" && usuarioTemp.CodigoRFID != usuario.CodigoRFID)
+            {
+                usuarioTemp.CodigoRFID = usuario.CodigoRFID;
+                _context.Entry(usuarioTemp).Property(user => user.CodigoRFID).IsModified = true;
+            }
+
+            if (usuarioTemp.Status != usuario.Status)
+            {
+                usuarioTemp.Status = usuario.Status;
+                _context.Entry(usuarioTemp).Property(user => user.Status).IsModified = true;
+            }
+
             await _context.SaveChangesAsync();
 
             return NoContent();
@@ -133,7 +171,7 @@ namespace condominio_API.Controllers
         {
             if (id <= 0)
             {
-                return BadRequest("Usuario inválido.");
+                return BadRequest("Usuário inválido.");
             }
 
             var usuario = await _context.Usuarios.FindAsync(id);

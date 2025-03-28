@@ -1,5 +1,7 @@
-﻿using condominio_API.Models;
+﻿using condominio_API.Data;
+using condominio_API.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -9,85 +11,129 @@ namespace condominio_API.Controllers
     [ApiController]
     public class VisitanteController : ControllerBase
     {
-        public static List<Visitante> visitantes = new List<Visitante>();
+        private readonly AppDbContext _context;
 
-        [HttpGet]
-        public ActionResult<IEnumerable<Visitante>> GetVisitantes()
+        public VisitanteController(AppDbContext context)
         {
+            _context = context;
+        }
+
+        [HttpGet("ExibirTodosVisitantes")]
+        public async Task<ActionResult<IEnumerable<Visitante>>> GetTodosVisitantes()
+        {
+            return await _context.Visitantes.ToListAsync();
+        }
+
+        [HttpGet("BuscarVisitantePor")]
+        public async Task<ActionResult<IEnumerable<Visitante>>> GetVisitante([FromQuery] string? nomeVisitante, [FromQuery] string? documento)
+        {
+            var query = _context.Visitantes.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(nomeVisitante))
+            {
+                query = query.Where(visit => visit.Nome.Contains(nomeVisitante));
+            }
+
+            if (!string.IsNullOrWhiteSpace(documento))
+            {
+                query = query.Where(visit => visit.Documento.Contains(documento));
+            }
+
+            var visitantes = await query.ToListAsync();
+
+            if (visitantes.Count == 0)
+            {
+                return NotFound(new { mensagem = "Nenhum visitante encontrado." });
+            }
+
             return Ok(visitantes);
         }
 
-        [HttpGet("{id}")]
-        public ActionResult<Visitante> GetVisitante(int id)
+        [HttpPost("CadastrarVisitante")]
+        public async Task<ActionResult<Visitante>> PostVisitante(Visitante NovoVisitante)
         {
-            var visitante = visitantes.FirstOrDefault(v => v.VisitanteId == id);
-            if (visitante == null)
+            try
             {
-                return NotFound(new { mensagem = "Visitante não encontrado." });
+                if (NovoVisitante == null)
+                {
+                    return BadRequest(new { mensagem = "Por favor, preencha todos os campos" });
+                }
+
+                var visitanteFirst = await _context.Visitantes.FirstOrDefaultAsync(visit => visit.Documento == NovoVisitante.Documento);
+
+                if (visitanteFirst != null)
+                {
+                    return BadRequest(new { mensagem = "Este visitante já está cadastrado!" });
+                }
+
+                _context.Visitantes.Add(NovoVisitante);
+                await _context.SaveChangesAsync();
+
+                return Ok(new { mensagem = "Visitante cadastrado com sucesso", NovoVisitante });
             }
-            return Ok(visitante);
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { mensagem = "Erro ao cadastrar visitante!", detalhes = ex.Message });
+            }
         }
 
-        [HttpPost]
-        public ActionResult<Visitante> PostVisitante(Visitante novoVisitante)
+        [HttpPut("AtualizarVisitante/{id}")]
+        public async Task<IActionResult> PutVisitante(int id, [FromBody] Visitante visitante)
         {
-            if (string.IsNullOrEmpty(novoVisitante.Nome) || string.IsNullOrEmpty(novoVisitante.Documento) || string.IsNullOrEmpty(novoVisitante.Telefone))
+            if (id <= 0)
             {
-                return BadRequest(new { mensagem = "Nome, Documento e Telefone são obrigatórios." });
+                return BadRequest("Visitante inválido.");
             }
 
-            var visitanteExistente = visitantes.FirstOrDefault(v => v.Documento == novoVisitante.Documento);
-            if (visitanteExistente != null)
+            var visitanteTemp = await _context.Visitantes.FindAsync(id);
+
+            if (visitanteTemp == null)
             {
-                return BadRequest(new { mensagem = "Já existe um visitante cadastrado com este documento." });
+                return NotFound();
             }
 
-            int novoId = visitantes.Count > 0 ? visitantes.Max(v => v.VisitanteId) + 1 : 1;
-            novoVisitante.VisitanteId = novoId;
-
-            visitantes.Add(novoVisitante);
-
-            return CreatedAtAction(nameof(GetVisitante), new { id = novoVisitante.VisitanteId }, novoVisitante);
-        }
-
-        [HttpPut("{id}")]
-        public IActionResult PutVisitante(int id, Visitante visitanteAtualizado)
-        {
-            var visitanteExistente = visitantes.FirstOrDefault(v => v.VisitanteId == id);
-            if (visitanteExistente == null)
+            if (!string.IsNullOrEmpty(visitante.Nome) && visitante.Nome != "string" && visitanteTemp.Nome != visitante.Nome)
             {
-                return NotFound(new { mensagem = "Visitante não encontrado." });
+                visitanteTemp.Nome = visitante.Nome;
+                _context.Entry(visitanteTemp).Property(v => v.Nome).IsModified = true;
             }
 
-            if (string.IsNullOrEmpty(visitanteAtualizado.Nome) || string.IsNullOrEmpty(visitanteAtualizado.Documento) || string.IsNullOrEmpty(visitanteAtualizado.Telefone))
+            if (!string.IsNullOrEmpty(visitante.Documento) && visitante.Documento != "string" && visitanteTemp.Documento != visitante.Documento)
             {
-                return BadRequest(new { mensagem = "Nome, Documento e Telefone são obrigatórios." });
+                visitanteTemp.Documento = visitante.Documento;
+                _context.Entry(visitanteTemp).Property(v => v.Documento).IsModified = true;
             }
 
-            var outroVisitante = visitantes.FirstOrDefault(v => v.Documento == visitanteAtualizado.Documento && v.VisitanteId != id);
-            if (outroVisitante != null)
+            if (!string.IsNullOrEmpty(visitante.Telefone) && visitante.Telefone != "string" && visitanteTemp.Telefone != visitante.Telefone)
             {
-                return BadRequest(new { mensagem = "Outro visitante já está cadastrado com este documento." });
+                visitanteTemp.Telefone = visitante.Telefone;
+                _context.Entry(visitanteTemp).Property(v => v.Telefone).IsModified = true;
             }
 
-            visitanteExistente.Nome = visitanteAtualizado.Nome;
-            visitanteExistente.Documento = visitanteAtualizado.Documento;
-            visitanteExistente.Telefone = visitanteAtualizado.Telefone;
+            await _context.SaveChangesAsync();
 
             return NoContent();
         }
 
-        [HttpDelete("{id}")]
-        public IActionResult DeleteVisitante(int id)
+
+        [HttpDelete("ExcluirVisitante/{id}")]
+        public async Task<IActionResult> DeletarVisitante(int id)
         {
-            var visitante = visitantes.FirstOrDefault(v => v.VisitanteId == id);
-            if (visitante == null)
+            if (id <= 0)
             {
-                return NotFound(new { mensagem = "Visitante não encontrado." });
+                return BadRequest("Visitante inválido.");
             }
 
-            visitantes.Remove(visitante);
-            return Ok(new { mensagem = "Visitante removido com sucesso." });
+            var visitante = await _context.Visitantes.FindAsync(id);
+            if (visitante == null)
+            {
+                return NotFound();
+            }
+
+            _context.Visitantes.Remove(visitante);
+            await _context.SaveChangesAsync();
+
+            return Ok();
         }
     }
 }

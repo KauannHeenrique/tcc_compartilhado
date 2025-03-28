@@ -19,13 +19,13 @@ namespace condominio_API.Controllers
         }
 
         [HttpGet("ExibirTodosApartamentos")]
-        public async Task<ActionResult<IEnumerable<Apartamento>>> GetApartamento()
+        public async Task<ActionResult<IEnumerable<Apartamento>>> GetTodosApartamentos()
         {
             return await _context.Apartamentos.ToListAsync();
         }
 
 
-        [HttpGet("BuscarApartamento")]   
+        [HttpGet("BuscarApartamentoPor")]   
         public async Task<ActionResult<IEnumerable<Apartamento>>> GetApartamentos([FromQuery] string? bloco, [FromQuery] int? numero, [FromQuery] string? proprietario)
         {
             var query = _context.Apartamentos.AsQueryable();
@@ -102,9 +102,10 @@ namespace condominio_API.Controllers
                 return NotFound();
             }
 
-            if (!string.IsNullOrEmpty(apartamento.Bloco) && apartamento.Bloco != "string")
+            if (!string.IsNullOrEmpty(apartamento.Bloco) && apartamento.Bloco != "string" && apartamentoTemp.Bloco != apartamento.Bloco)
             {
                 apartamentoTemp.Bloco = apartamento.Bloco;
+                _context.Entry(apartamentoTemp).Property(a => a.Bloco).IsModified = true;
             }
 
             if (apartamento.Numero > 0 && apartamentoTemp.Numero != apartamento.Numero)
@@ -113,23 +114,24 @@ namespace condominio_API.Controllers
                 _context.Entry(apartamentoTemp).Property(a => a.Numero).IsModified = true;
             }
 
-            if (!string.IsNullOrEmpty(apartamento.Proprietario) && apartamento.Proprietario != "string")
+            if (!string.IsNullOrEmpty(apartamento.Proprietario) && apartamento.Proprietario != "string" && apartamentoTemp.Proprietario != apartamento.Proprietario)
             {
                 apartamentoTemp.Proprietario = apartamento.Proprietario;
+                _context.Entry(apartamentoTemp).Property(a => a.Proprietario).IsModified = true;
             }
 
-            _context.Apartamentos.Update(apartamentoTemp);
             await _context.SaveChangesAsync();
 
             return NoContent();
         }
+
 
         [HttpDelete("ExcluirApartamento/{id}")]
         public async Task<IActionResult> DeletarApartamento(int id)
         {
             if (id <= 0)
             {
-                return BadRequest("ID inválido.");
+                return BadRequest("Apartamento inválido.");
             }
 
             var apartamento = await _context.Apartamentos.FindAsync(id);
