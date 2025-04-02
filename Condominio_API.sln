@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.10.35027.167
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Condominio_API", "Condominio_API\Condominio_API.csproj", "{7EC24DBF-F710-487F-A59C-2E8EE360C418}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{7EC24DBF-F710-487F-A59C-2E8EE360C418}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7EC24DBF-F710-487F-A59C-2E8EE360C418}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7EC24DBF-F710-487F-A59C-2E8EE360C418}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7EC24DBF-F710-487F-A59C-2E8EE360C418}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {19FF32CB-FC36-4B27-9E3C-575A0450BE3B}
+	EndGlobalSection
+EndGlobal
