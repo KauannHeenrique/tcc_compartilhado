@@ -24,7 +24,6 @@ namespace condominio_API.Controllers
             return await _context.Apartamentos.ToListAsync();
         }
 
-
         [HttpGet("BuscarApartamentoPor")]   
         public async Task<ActionResult<IEnumerable<Apartamento>>> GetApartamentos([FromQuery] string? bloco, [FromQuery] int? numero, [FromQuery] string? proprietario)
         {
@@ -32,17 +31,17 @@ namespace condominio_API.Controllers
 
             if (!string.IsNullOrWhiteSpace(bloco))
             {
-                query = query.Where(a => a.Bloco.Contains(bloco));
+                query = query.Where(ap => ap.Bloco.Contains(bloco));
             }
 
             if (numero.HasValue)
             {
-                query = query.Where(a => a.Numero == numero.Value);
+                query = query.Where(ap => ap.Numero == numero.Value);
             }
 
             if (!string.IsNullOrWhiteSpace(proprietario))
             {
-                query = query.Where(a => a.Proprietario.Contains(proprietario));
+                query = query.Where(ap => ap.Proprietario.Contains(proprietario));
             }
 
             var apartamentos = await query.ToListAsync();
@@ -55,7 +54,6 @@ namespace condominio_API.Controllers
             return Ok(apartamentos);
         }
 
-
         [HttpPost("CadastrarApartamento")] 
         public async Task<ActionResult<Apartamento>> PostApartamento(Apartamento novoApartamento)
         {
@@ -67,8 +65,8 @@ namespace condominio_API.Controllers
                     return BadRequest(new { mensagem = "Por favor, preencha todos os campos" });
                 }
 
-                var apartamentoFirst = await _context.Apartamentos.FirstOrDefaultAsync(a => a.Bloco == novoApartamento.Bloco &&
-                a.Numero == novoApartamento.Numero);
+                var apartamentoFirst = await _context.Apartamentos.FirstOrDefaultAsync(ap => ap.Bloco == novoApartamento.Bloco &&
+                ap.Numero == novoApartamento.Numero);
 
                 if (apartamentoFirst != null)
                 {
@@ -86,13 +84,12 @@ namespace condominio_API.Controllers
             }
         }
 
-
         [HttpPut("AtualizarApartamento/{id}")]
         public async Task<IActionResult> PutApartamento(int id, [FromBody] Apartamento apartamento)
         {
             if (id <= 0)
             {
-                return BadRequest("ID inválido.");
+                return BadRequest("Apartamento inválido.");
             }
 
             var apartamentoTemp = await _context.Apartamentos.FindAsync(id);
@@ -124,7 +121,6 @@ namespace condominio_API.Controllers
 
             return NoContent();
         }
-
 
         [HttpDelete("ExcluirApartamento/{id}")]
         public async Task<IActionResult> DeletarApartamento(int id)

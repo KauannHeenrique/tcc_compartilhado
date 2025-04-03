@@ -21,7 +21,7 @@ namespace condominio_API.Controllers
 
         public async Task<ActionResult<IEnumerable<Usuario>>> GetTodosUsuarios()
         {
-            return await _context.Usuarios.ToListAsync();
+            return await _context.Usuarios.Include(user => user.Apartamento).ToListAsync();
         }
 
         [HttpGet("BuscarUsuarioPor")]

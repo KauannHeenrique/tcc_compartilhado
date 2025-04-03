@@ -53,17 +53,19 @@ namespace condominio_API.Controllers
         public async Task<ActionResult<Visitante>> PostVisitante(Visitante NovoVisitante)
         {
             try
-            {
-                if (NovoVisitante == null)
+            {       
+                if (string.IsNullOrEmpty(NovoVisitante.Nome) || NovoVisitante.Nome == "string" || 
+                    string.IsNullOrEmpty(NovoVisitante.Documento) || NovoVisitante.Documento == "string" || 
+                    string.IsNullOrEmpty(NovoVisitante.Telefone) || NovoVisitante.Telefone == "string")
                 {
-                    return BadRequest(new { mensagem = "Por favor, preencha todos os campos" });
+                    return BadRequest(new { mensagem = "Nome, Documento e Telefone são obrigatórios!" });
                 }
 
-                var visitanteFirst = await _context.Visitantes.FirstOrDefaultAsync(visit => visit.Documento == NovoVisitante.Documento);
+                var visitanteExistente = await _context.Visitantes.FirstOrDefaultAsync(visit => visit.Documento == NovoVisitante.Documento && visit.Cnpj == NovoVisitante.Cnpj);
 
-                if (visitanteFirst != null)
+                if (visitanteExistente != null)
                 {
-                    return BadRequest(new { mensagem = "Este visitante já está cadastrado!" });
+                    return Ok(new { mensagem = "Visitante já cadastrado. Deseja gerar um QR code para esta visita?", visitante = visitanteExistente, gerarQrCode = true });
                 }
 
                 _context.Visitantes.Add(NovoVisitante);
