@@ -1,7 +1,7 @@
 ﻿/*using condominio_API.Models;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
-using System.Linq;
+using System.Linq;asdasdasdas
 
 namespace condominio_API.Controllers
 {
