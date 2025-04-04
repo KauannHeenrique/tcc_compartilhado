@@ -32,5 +32,8 @@ namespace condominio_API.Models
 
         [Required]
         public bool Status { get; set; }
+
+        [Required]
+        public byte[] QrCodeImagem { get; set; }
     }
 }

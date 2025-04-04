@@ -15,7 +15,7 @@ namespace condominio_API.Data
         public DbSet<AcessoEntradaVisitante> AcessoEntradaVisitantes { get; set; }
         public DbSet<Apartamento> Apartamentos { get; set; }
         public DbSet<Notificacao> Notificacoes { get; set; }
-        public DbSet<QRCodeTemp> QRCodeTemps { get; set; }
+        public DbSet<QRCodeTemp> QRCodesTemp { get; set; }
         public DbSet<Visitante> Visitantes { get; set; }
         public DbSet<Usuario> Usuarios { get; set; }
 
@@ -51,12 +51,14 @@ namespace condominio_API.Data
             modelBuilder.Entity<QRCodeTemp>()
                 .HasOne(q => q.Morador)
                 .WithMany()
-                .HasForeignKey(q => q.MoradorId);
+                .HasForeignKey(q => q.MoradorId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<QRCodeTemp>()
                 .HasOne(q => q.Visitante)
                 .WithMany()
-                .HasForeignKey(q => q.VisitanteId);
+                .HasForeignKey(q => q.VisitanteId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Usuario>()
                 .HasOne(u => u.Apartamento)

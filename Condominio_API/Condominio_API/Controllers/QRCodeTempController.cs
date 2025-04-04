@@ -1,10 +1,14 @@
-﻿/* using condominio_API.Models;
+﻿using condominio_API.Data;
+using condominio_API.Models;
+using Condominio_API.Utilitarios; 
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using QRCoder;
-using System.Drawing;
-using System.IO;
+using System.Threading.Tasks;
+using QRCoder; // gera os qrcodes
+using System.Drawing; // usado no Bitmap (via System.Drawing.Common)
 
 namespace condominio_API.Controllers
 {
@@ -12,96 +16,249 @@ namespace condominio_API.Controllers
     [ApiController]
     public class QRCodeTempController : ControllerBase
     {
-        private static List<QRCodeTemp> qrCodes = new List<QRCodeTemp>();
+        private readonly AppDbContext _context;
 
-        [HttpGet]
-        public ActionResult<IEnumerable<QRCodeTemp>> GetQRCodes()
+        public QRCodeTempController(AppDbContext context)
         {
-            return Ok(qrCodes);
+            _context = context;
         }
 
-        [HttpGet("{id}")]
-        public ActionResult<QRCodeTemp> GetQRCode(int id)
+        [HttpPost("CriarQRCode")]
+        public async Task<ActionResult<QRCodeTemp>> CriarQRCode([FromBody] QRCodeRequired qrCodeRequired)
         {
-            var qrCode = qrCodes.FirstOrDefault(q => q.Id == id);
-            if (qrCode == null)
+            try
             {
-                return NotFound(new { mensagem = "QR Code não encontrado." });
-            }
-            return Ok(qrCode);
-        }
-
-        [HttpPost]
-        public ActionResult<object> PostQRCode(QRCodeTemp novoQRCode)
-        {
-            var morador = UsuarioController.usuarios.FirstOrDefault(u => u.UsuarioId == novoQRCode.MoradorId);
-            if (morador == null)
-            {
-                return BadRequest(new { mensagem = "Morador não encontrado." });
-            }
-
-            var visitante = VisitanteController.visitantes.FirstOrDefault(v => v.VisitanteId == novoQRCode.VisitanteId);
-            if (visitante == null)
-            {
-                return BadRequest(new { mensagem = "Visitante não encontrado." });
-            }
-
-            var qrCodeExistente = qrCodes.FirstOrDefault(q => q.MoradorId == novoQRCode.MoradorId);
-            if (qrCodeExistente != null)
-            {
-                string qrCodeDataExistente = $"QRCodeId:{qrCodeExistente.Id},MoradorId:{qrCodeExistente.MoradorId},VisitanteId:{qrCodeExistente.VisitanteId},Validade:{qrCodeExistente.DataValidade}";
-                using (var qrGenerator = new QRCodeGenerator())
+                if (qrCodeRequired == null || qrCodeRequired.MoradorId <= 0 || qrCodeRequired.VisitanteId <= 0)
                 {
-                    var qrCode = qrGenerator.CreateQrCode(qrCodeDataExistente, QRCodeGenerator.ECCLevel.Q);
-                    using (var qrCodeImage = new PngByteQRCode(qrCode))
-                    {
-                        byte[] qrImageBytes = qrCodeImage.GetGraphic(20);
-                        string base64Image = Convert.ToBase64String(qrImageBytes);
-                        return Ok(new
-                        {
-                            qrCode = qrCodeExistente,
-                            qrCodeImage = $"data:image/png;base64,{base64Image}"
-                        });
-                    }
+                    return BadRequest(new { mensagem = "MoradorId e VisitanteId são obrigatórios!" });
                 }
-            }
 
-            int novoId = qrCodes.Count > 0 ? qrCodes.Max(q => q.Id) + 1 : 1;
-            novoQRCode.Id = novoId;
-            novoQRCode.DataCriacao = DateTime.Now;
-            novoQRCode.DataValidade = novoQRCode.TipoQRCode ? DateTime.Now.AddHours(24) : DateTime.Now.AddYears(100);
-            novoQRCode.Status = true;
+                var morador = await _context.Usuarios!.FindAsync(qrCodeRequired.MoradorId);
+                var visitante = await _context.Visitantes!.FindAsync(qrCodeRequired.VisitanteId);
 
-            qrCodes.Add(novoQRCode);
+                if (morador == null || visitante == null)
+                {
+                    return BadRequest(new { mensagem = "Morador ou Visitante não encontrado!" });
+                }
 
-            string qrCodeData = $"QRCodeId:{novoQRCode.Id},MoradorId:{novoQRCode.MoradorId},VisitanteId:{novoQRCode.VisitanteId},Validade:{novoQRCode.DataValidade}";
-            using (var qrGenerator = new QRCodeGenerator())
-            {
+                var novoQRCode = new QRCodeTemp
+                {
+                    MoradorId = qrCodeRequired.MoradorId,
+                    VisitanteId = qrCodeRequired.VisitanteId,
+                    TipoQRCode = qrCodeRequired.TipoQRCode,
+                    DataCriacao = DateTime.Now,
+                    DataValidade = qrCodeRequired.TipoQRCode ? DateTime.Now.AddHours(24) : DateTime.Now.AddHours(4),
+                    Status = true,
+                    QrCodeImagem = Array.Empty<byte>() 
+                };
+
+                string qrCodeData = $"Visitante:{visitante.Nome},Validade:{novoQRCode.DataValidade}";
+                var qrGenerator = new QRCodeGenerator();
                 var qrCode = qrGenerator.CreateQrCode(qrCodeData, QRCodeGenerator.ECCLevel.Q);
-                using (var qrCodeImage = new PngByteQRCode(qrCode))
+                var qrCodeImage = new QRCode(qrCode).GetGraphic(20);
+                novoQRCode.QrCodeImagem = qrCodeImage.ToByteArray();
+
+                _context.QRCodesTemp!.Add(novoQRCode);
+                await _context.SaveChangesAsync();
+
+                var qrCodeBase64 = Convert.ToBase64String(novoQRCode.QrCodeImagem);
+                return Ok(new
                 {
-                    byte[] qrImageBytes = qrCodeImage.GetGraphic(20);
-                    string base64Image = Convert.ToBase64String(qrImageBytes);
-                    return Ok(new
+                    mensagem = "QR Code criado com sucesso",
+                    novoQRCode = new
                     {
-                        qrCode = novoQRCode,
-                        qrCodeImage = $"data:image/png;base64,{base64Image}"
-                    });
-                }
+                        novoQRCode.Id,
+                        novoQRCode.MoradorId,
+                        novoQRCode.VisitanteId,
+                        novoQRCode.TipoQRCode,
+                        novoQRCode.DataCriacao,
+                        novoQRCode.DataValidade,
+                        novoQRCode.Status,
+                        QrCodeImagem = qrCodeBase64
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { mensagem = "Erro ao criar QR Code!", detalhes = ex.Message });
             }
         }
 
-        [HttpDelete("{id}")]
-        public IActionResult DeleteQRCode(int id)
+        [HttpGet("ExibirQRCodesPorMorador/{moradorId}")]
+        public async Task<ActionResult<IEnumerable<object>>> GetQRCodesPorMorador(int moradorId)
         {
-            var qrCode = qrCodes.FirstOrDefault(q => q.Id == id);
-            if (qrCode == null)
+            try
             {
-                return NotFound(new { mensagem = "QR Code não encontrado." });
-            }
+                if (moradorId <= 0)
+                {
+                    return BadRequest(new { mensagem = "MoradorId inválido!" });
+                }
 
-            qrCodes.Remove(qrCode);
-            return Ok(new { mensagem = "QR Code removido com sucesso." });
+                var qrCodes = await _context.QRCodesTemp
+                    .Where(q => q.MoradorId == moradorId)
+                    .Include(q => q.Morador)
+                    .Include(q => q.Visitante)
+                    .OrderByDescending(q => q.DataCriacao)
+                    .Select(q => new
+                    {
+                        q.Id,
+                        q.MoradorId,
+                        q.VisitanteId,
+                        q.TipoQRCode,
+                        q.DataCriacao,
+                        q.DataValidade,
+                        q.Status,
+                        QrCodeImagem = Convert.ToBase64String(q.QrCodeImagem), // Converte byte pra base 64 no retorno
+                        Morador = new { q.Morador.UsuarioId, q.Morador.Nome }, 
+                        Visitante = new { q.Visitante.VisitanteId, q.Visitante.Nome, q.Visitante.Documento, q.Visitante.Telefone },
+                        IsValid = q.Status && q.DataValidade >= DateTime.Now
+                    })
+                    .ToListAsync();
+
+                if (qrCodes.Count == 0)
+                {
+                    return NotFound(new { mensagem = "Nenhum QR Code encontrado para este morador." });
+                }
+
+                return Ok(qrCodes);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { mensagem = "Erro ao buscar QR Codes!", detalhes = ex.Message });
+            }
+        }
+
+        [HttpGet("BuscarQRCodePorVisitante")]
+        public async Task<ActionResult<IEnumerable<object>>> BuscarQRCodePorVisitante([FromQuery] int moradorId,
+            [FromQuery] string? nomeVisitante = null, [FromQuery] string? documento = null, [FromQuery] string? telefone = null)
+        {
+            try
+            {
+                if (moradorId <= 0)
+                {
+                    return BadRequest(new { mensagem = "Morador inválido!" });
+                }
+
+                if (string.IsNullOrEmpty(nomeVisitante) && string.IsNullOrEmpty(documento) && string.IsNullOrEmpty(telefone))
+                {
+                    return BadRequest(new { mensagem = "Informe pelo menos um filtro: nome, documento ou telefone!" });
+                }
+
+                var query = _context.QRCodesTemp
+                    .Where(q => q.MoradorId == moradorId)
+                    .Include(q => q.Morador)
+                    .Include(q => q.Visitante)
+                    .AsQueryable();
+
+                if (!string.IsNullOrEmpty(nomeVisitante))
+                {
+                    query = query.Where(q => q.Visitante.Nome.Contains(nomeVisitante));
+                }
+                if (!string.IsNullOrEmpty(documento))
+                {
+                    query = query.Where(q => q.Visitante.Documento.Contains(documento));
+                }
+                if (!string.IsNullOrEmpty(telefone))
+                {
+                    query = query.Where(q => q.Visitante.Telefone.Contains(telefone));
+                }
+
+                var qrCodes = await query
+                    .Select(q => new
+                    {
+                        q.Id,
+                        q.MoradorId,
+                        q.VisitanteId,
+                        q.TipoQRCode,
+                        q.DataCriacao,
+                        q.DataValidade,
+                        q.Status,
+                        QrCodeImagem = Convert.ToBase64String(q.QrCodeImagem), 
+                        Morador = new { q.Morador.UsuarioId, q.Morador.Nome }, 
+                        Visitante = new { q.Visitante.VisitanteId, q.Visitante.Nome, q.Visitante.Documento, q.Visitante.Telefone },
+                        IsValid = q.Status && q.DataValidade >= DateTime.Now
+                    })
+                    .ToListAsync();
+
+                if (qrCodes.Count == 0)
+                {
+                    return NotFound(new { mensagem = "Nenhum QR Code encontrado!" });
+                }
+
+                return Ok(qrCodes);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { mensagem = "Erro ao buscar QR Code!", detalhes = ex.Message });
+            }
+        }
+
+        [HttpPost("InativarQRCode/{id}")]
+        public async Task<IActionResult> InativarQRCode(int id)
+        {
+            try
+            {
+                if (id <= 0)
+                {
+                    return BadRequest(new { mensagem = "QR Code  inválido!" });
+                }
+
+                var qrCode = await _context.QRCodesTemp.FindAsync(id);
+                if (qrCode == null)
+                {
+                    return NotFound(new { mensagem = "QR Code não encontrado!" });
+                }
+
+                if (!qrCode.Status)
+                {
+                    return BadRequest(new { mensagem = "O QR Code já está inativo!" });
+                }
+
+                qrCode.Status = false;
+                await _context.SaveChangesAsync();
+
+                return Ok(new { mensagem = "QR Code inativado com sucesso!" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { mensagem = "Erro ao inativar QR Code!", detalhes = ex.Message });
+            }
+        }
+
+        [HttpPost("ValidarQRCode/{id}")]
+        public async Task<IActionResult> ValidarQRCode(int id)
+        {
+            try
+            {
+                if (id <= 0)
+                {
+                    return BadRequest(new { mensagem = "QR Code inválido!" });
+                }
+
+                var qrCode = await _context.QRCodesTemp.FindAsync(id);
+                if (qrCode == null)
+                {
+                    return NotFound(new { mensagem = "QR Code não encontrado!" });
+                }
+
+                if (!qrCode.Status || qrCode.DataValidade < DateTime.Now)
+                {
+                    return BadRequest(new { mensagem = "QR Code expirado ou inativado!" });
+                }
+
+                if (!qrCode.TipoQRCode) // false = uso único
+                {
+                    qrCode.Status = false;
+                    await _context.SaveChangesAsync();
+                    return Ok(new { mensagem = "QR Code válido e inativado!" });
+                }
+
+                return Ok(new { mensagem = "QR Code válido!" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { mensagem = "Erro ao validar QR Code!", detalhes = ex.Message });
+            }
         }
     }
-}*/
+}
