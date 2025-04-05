@@ -24,17 +24,17 @@ namespace condominio_API.Controllers
         }
 
         [HttpPost("CriarQRCode")]
-        public async Task<ActionResult<QRCodeTemp>> CriarQRCode([FromBody] QRCodeRequired qrCodeRequired)
+        public async Task<ActionResult<QRCodeTemp>> CriarQRCode([FromBody] QRCodeRequest qrCodeReq)
         {
             try
             {
-                if (qrCodeRequired == null || qrCodeRequired.MoradorId <= 0 || qrCodeRequired.VisitanteId <= 0)
+                if (qrCodeReq == null || qrCodeReq.MoradorId <= 0 || qrCodeReq.VisitanteId <= 0)
                 {
                     return BadRequest(new { mensagem = "MoradorId e VisitanteId são obrigatórios!" });
                 }
 
-                var morador = await _context.Usuarios!.FindAsync(qrCodeRequired.MoradorId);
-                var visitante = await _context.Visitantes!.FindAsync(qrCodeRequired.VisitanteId);
+                var morador = await _context.Usuarios!.FindAsync(qrCodeReq.MoradorId);
+                var visitante = await _context.Visitantes!.FindAsync(qrCodeReq.VisitanteId);
 
                 if (morador == null || visitante == null)
                 {
@@ -43,16 +43,18 @@ namespace condominio_API.Controllers
 
                 var novoQRCode = new QRCodeTemp
                 {
-                    MoradorId = qrCodeRequired.MoradorId,
-                    VisitanteId = qrCodeRequired.VisitanteId,
-                    TipoQRCode = qrCodeRequired.TipoQRCode,
+                    MoradorId = qrCodeReq.MoradorId,
+                    VisitanteId = qrCodeReq.VisitanteId,
+                    TipoQRCode = qrCodeReq.TipoQRCode,
                     DataCriacao = DateTime.Now,
-                    DataValidade = qrCodeRequired.TipoQRCode ? DateTime.Now.AddHours(24) : DateTime.Now.AddHours(4),
+                    DataValidade = qrCodeReq.TipoQRCode ? DateTime.Now.AddHours(24) : DateTime.Now.AddHours(4),
                     Status = true,
-                    QrCodeImagem = Array.Empty<byte>() 
+                    QrCodeImagem = Array.Empty<byte>()
                 };
 
-                string qrCodeData = $"Visitante:{visitante.Nome},Validade:{novoQRCode.DataValidade}";
+                string qrCodeData = $"Visitante - {visitante.Nome ?? "Desconhecido"}, Validade: {novoQRCode.DataValidade:dd/MM/yyyy HH:mm:ss}";
+                Console.WriteLine($"QR Code Data: {qrCodeData}");
+
                 var qrGenerator = new QRCodeGenerator();
                 var qrCode = qrGenerator.CreateQrCode(qrCodeData, QRCodeGenerator.ECCLevel.Q);
                 var qrCodeImage = new QRCode(qrCode).GetGraphic(20);
@@ -74,7 +76,8 @@ namespace condominio_API.Controllers
                         novoQRCode.DataCriacao,
                         novoQRCode.DataValidade,
                         novoQRCode.Status,
-                        QrCodeImagem = qrCodeBase64
+                        QrCodeImagem = qrCodeBase64,
+                        QrCodeData = qrCodeData // Retorna o texto pra você ver
                     }
                 });
             }

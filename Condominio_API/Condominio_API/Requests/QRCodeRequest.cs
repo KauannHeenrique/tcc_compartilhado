@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace condominio_API.Models
 {
-    public class QRCodeRequired
+    public class QRCodeRequest
     {
         [Required]
         public int MoradorId { get; set; }
