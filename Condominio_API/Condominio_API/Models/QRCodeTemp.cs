@@ -35,5 +35,9 @@ namespace condominio_API.Models
 
         [Required]
         public byte[] QrCodeImagem { get; set; }
+
+        public string QrCodeData { get; set; } = string.Empty; // campo onde eu vou salvar o texto que 
+                                                               // vai ser escrito no qrcode para verificar 
+                                                               // se ele é valido 
     }
 }

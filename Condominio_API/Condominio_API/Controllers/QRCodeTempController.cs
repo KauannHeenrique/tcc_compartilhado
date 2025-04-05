@@ -8,7 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using QRCoder; // gera os qrcodes
-using System.Drawing; // usado no Bitmap (via System.Drawing.Common)
+using System.Drawing; // usado no Bitmap
 
 namespace condominio_API.Controllers
 {
@@ -30,7 +30,7 @@ namespace condominio_API.Controllers
             {
                 if (qrCodeReq == null || qrCodeReq.MoradorId <= 0 || qrCodeReq.VisitanteId <= 0)
                 {
-                    return BadRequest(new { mensagem = "MoradorId e VisitanteId são obrigatórios!" });
+                    return BadRequest(new { mensagem = "Morador e visitante são campos obrigatórios!" });
                 }
 
                 var morador = await _context.Usuarios!.FindAsync(qrCodeReq.MoradorId);
@@ -77,7 +77,7 @@ namespace condominio_API.Controllers
                         novoQRCode.DataValidade,
                         novoQRCode.Status,
                         QrCodeImagem = qrCodeBase64,
-                        QrCodeData = qrCodeData // Retorna o texto pra você ver
+                        QrCodeData = qrCodeData
                     }
                 });
             }
@@ -249,7 +249,7 @@ namespace condominio_API.Controllers
                     return BadRequest(new { mensagem = "QR Code expirado ou inativado!" });
                 }
 
-                if (!qrCode.TipoQRCode) // false = uso único
+                if (!qrCode.TipoQRCode) // falso será uso único
                 {
                     qrCode.Status = false;
                     await _context.SaveChangesAsync();

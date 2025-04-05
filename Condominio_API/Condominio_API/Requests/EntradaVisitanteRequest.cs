@@ -1,10 +1,11 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace condominio_API.Request
+namespace Condominio_API.Requests
 {
     public class EntradaVisitanteRequest
     {
         [Required]
-        public byte[] QRCodeTemp { get; set; } 
+        public string QrCodeData { get; set; } = string.Empty; // aqui vai ser "lido" o texto que tem no 
+                                                               // qrcode, não a imagem em sí
     }
 }

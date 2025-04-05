@@ -1,11 +1,11 @@
-﻿using condominio_API.Request;
+﻿using Condominio_API.Requests;
 using condominio_API.Data;
+using condominio_API.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using condominio_API.Models;
 
 namespace condominio_API.Controllers
 {
@@ -25,27 +25,33 @@ namespace condominio_API.Controllers
         {
             try
             {
-                if (entradaVisitanteReq == null || entradaVisitanteReq.QRCodeTemp == null || entradaVisitanteReq.QRCodeTemp.Length == 0)
+                if (entradaVisitanteReq == null || string.IsNullOrEmpty(entradaVisitanteReq.QrCodeData))
                 {
-                    return BadRequest(new { mensagem = "O QR Code é obrigatório!" });
+                    return BadRequest(new { mensagem = "O QR code é obrigatório!" });
                 }
 
-                var visitante = await _context.Visitantes!
-                    .Include(v => v.Visitante)
-                    .FirstOrDefaultAsync(v => v.QRCodeTemp == entradaVisitanteReq.QRCodeTemp);
+                // Busca o QR code ativo em QRCodesTemp
+                var qrCode = await _context.QRCodesTemp!
+                    .Include(q => q.Visitante)
+                    .Include(q => q.Morador)
+                        .ThenInclude(m => m.Apartamento)
+                    .FirstOrDefaultAsync(q => q.QrCodeData == entradaVisitanteReq.QrCodeData
+                                           && q.Status
+                                           && q.DataValidade > DateTime.Now);
 
-                if (visitante == null)
+                if (qrCode == null)
                 {
-                    return BadRequest(new { mensagem = "QR Code não cadastrado!" });
+                    return BadRequest(new { mensagem = "QR code inválido, expirado ou não encontrado!" });
                 }
 
-                var novaEntradaVisitante = new AcessoEntradaVisitante
+                var novaEntrada = new AcessoEntradaVisitante
                 {
-                    VisitanteId = visitante.visitanteId,
+                    VisitanteId = qrCode.VisitanteId,
+                    UsuarioId = qrCode.MoradorId,
                     DataHoraEntrada = DateTime.Now
                 };
 
-                _context.AcessoEntradaVisitantes!.Add(novaEntradaVisitante);
+                _context.AcessoEntradaVisitantes!.Add(novaEntrada);
                 await _context.SaveChangesAsync();
 
                 return Ok(new
@@ -53,13 +59,15 @@ namespace condominio_API.Controllers
                     mensagem = "Entrada registrada com sucesso!",
                     entrada = new
                     {
-                        novaEntradaVisitante.Id,
-                        novaEntradaVisitante.VisitanteId,
-                        UsuarioNome = visitante.Nome,
-                        usuario.ApartamentoId,
-                        ApartamentoNumero = usuario.Apartamento?.Numero,
-                        bloco = usuario.Apartamento?.Bloco,
-                        novaEntrada.DataHoraEntrada
+                        id = novaEntrada.Id,
+                        idVisitante = novaEntrada.VisitanteId,
+                        nomeVisitante = qrCode.Visitante!.Nome,
+                        idMorador = novaEntrada.UsuarioId,
+                        nomeMorador = qrCode.Morador!.Nome,
+                        idApartamento = qrCode.Morador!.ApartamentoId,
+                        apartamento = qrCode.Morador!.Apartamento!.Numero,
+                        bloco = qrCode.Morador!.Apartamento!.Bloco,
+                        dataEntrada = novaEntrada.DataHoraEntrada
                     }
                 });
             }
@@ -74,34 +82,41 @@ namespace condominio_API.Controllers
         {
             try
             {
-                var entradasVisitante = await _context.AcessoEntradaVisitantes!
+                var entradas = await _context.AcessoEntradaVisitantes!
+                    .Include(e => e.Visitante)
                     .Include(e => e.Usuario)
                         .ThenInclude(u => u.Apartamento)
                     .OrderByDescending(e => e.DataHoraEntrada)
                     .Select(e => new
                     {
-                        e.Id,
-                        e.VisitanteId,
-                        Nome = e.Visitante!.Nome,
-                        e.Usuario!.ApartamentoId,
-                        Apartamento = e.Usuario!.Apartamento!.Numero,
+                        id = e.Id,
+                        idVisitante = e.VisitanteId,
+                        nomeVisitante = e.Visitante!.Nome,
+                        documentoVisitante = e.Visitante!.Documento,
+                        idMorador = e.UsuarioId,
+                        nomeMorador = e.Usuario!.Nome,
+                        idApartamento = e.Usuario!.ApartamentoId,
+                        apartamento = e.Usuario!.Apartamento!.Numero,
                         bloco = e.Usuario!.Apartamento!.Bloco,
-                        documento = e.Visitante!.Documento,
-                        e.DataHoraEntrada
+                        dataEntrada = e.DataHoraEntrada
                     })
                     .ToListAsync();
 
-                return Ok(entradasVisitante);
+                return Ok(entradas);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { mensagem = "Erro ao listar acessos!", detalhes = ex.Message });
+                return StatusCode(500, new { mensagem = "Erro ao listar entradas!", detalhes = ex.Message });
             }
         }
 
-        [HttpGet("FiltrarEntradasVisitanteAdmin")]
-        public async Task<ActionResult> FiltrarEntradasVisitanteAdmin([FromQuery] string? documento = null, [FromQuery] int? apartamentoId = null,
-            [FromQuery] string? bloco = null, [FromQuery] DateTime? dataInicio = null, [FromQuery] DateTime? dataFim = null)
+        [HttpGet("FiltrarEntradasVisitantesAdmin")]
+        public async Task<ActionResult> FiltrarEntradasVisitantesAdmin(
+            [FromQuery] string? documento = null,
+            [FromQuery] int? apartamentoId = null,
+            [FromQuery] string? bloco = null,
+            [FromQuery] DateTime? dataInicio = null,
+            [FromQuery] DateTime? dataFim = null)
         {
             try
             {
@@ -112,6 +127,7 @@ namespace condominio_API.Controllers
 
                 var query = _context.AcessoEntradaVisitantes!
                     .Include(e => e.Visitante)
+                    .Include(e => e.Usuario)
                         .ThenInclude(u => u.Apartamento)
                     .AsQueryable();
 
@@ -125,6 +141,11 @@ namespace condominio_API.Controllers
                     query = query.Where(e => e.Usuario!.ApartamentoId == apartamentoId.Value);
                 }
 
+                if (!string.IsNullOrEmpty(bloco))
+                {
+                    query = query.Where(e => e.Usuario!.Apartamento!.Bloco == bloco);
+                }
+
                 if (dataInicio.HasValue)
                 {
                     query = query.Where(e => e.DataHoraEntrada >= dataInicio.Value);
@@ -135,63 +156,16 @@ namespace condominio_API.Controllers
                     query = query.Where(e => e.DataHoraEntrada <= dataFim.Value);
                 }
 
-                var entradasVisitante = await query
-                    .OrderByDescending(e => e.DataHoraEntrada)
-                    .Select(e => new
-                    {
-                        e.Id,
-                        e.VisitanteId,
-                        Nome = e.VIsitante!.Nome,
-                        e.Usuario!.ApartamentoId,
-                        Apartamento = e.Usuario!.Apartamento!.Numero,
-                        bloco = e.Usuario!.Apartamento!.Bloco,
-                        documento = e.visitante!.Documento, 
-                        e.DataHoraEntrada
-                    })
-                    .ToListAsync();
-
-                if (entradasVisitante.Count == 0)
-                {
-                    return NotFound(new { mensagem = "Nenhuma entrada encontrada!" });
-                }
-
-                return Ok(entradasVisitante);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { mensagem = "Erro ao filtrar entradas!", detalhes = ex.Message });
-            }
-        }
-
-        [HttpGet("FiltrarEntradasVisitante_Usuario")]
-        public async Task<ActionResult> FiltrarEntradasVisitante_Usuario([FromQuery] int usuarioId)
-        {
-            try
-            {
-                if (usuarioId <= 0)
-                {
-                    return BadRequest(new { mensagem = "O usuário não é valido!" });
-                }
-
-                var usuarioLogado = await _context.Usuarios!.FirstOrDefaultAsync(user => user.UsuarioId == usuarioId);
-
-                if (usuarioLogado == null)
-                {
-                    return NotFound(new { mensagem = "Usuário não encontrado!" });
-                }
-
-                var apartamentoId = usuarioLogado.ApartamentoId;
-
-                var entradas = await _context.AcessoEntradaMoradores!
-                    .Include(e => e.Usuario)
-                        .ThenInclude(user => user.Apartamento)
-                    .Where(e => e.Usuario!.ApartamentoId == apartamentoId)
+                var entradas = await query
                     .OrderByDescending(e => e.DataHoraEntrada)
                     .Select(e => new
                     {
                         id = e.Id,
-                        idUsuario = e.UsuarioId,
-                        nome = e.Usuario!.Nome,
+                        idVisitante = e.VisitanteId,
+                        nomeVisitante = e.Visitante!.Nome,
+                        documentoVisitante = e.Visitante!.Documento,
+                        idMorador = e.UsuarioId,
+                        nomeMorador = e.Usuario!.Nome,
                         idApartamento = e.Usuario!.ApartamentoId,
                         apartamento = e.Usuario!.Apartamento!.Numero,
                         bloco = e.Usuario!.Apartamento!.Bloco,
@@ -201,7 +175,61 @@ namespace condominio_API.Controllers
 
                 if (entradas.Count == 0)
                 {
-                    return NotFound(new { mensagem = "Nenhuma entrada encontrada para o apartamento deste usuário!" });
+                    return NotFound(new { mensagem = "Nenhuma entrada encontrada!" });
+                }
+
+                return Ok(entradas);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { mensagem = "Erro ao filtrar entradas!", detalhes = ex.Message });
+            }
+        }
+
+        [HttpGet("ListarEntradasPorApartamentoDoUsuario")]
+        public async Task<ActionResult> ListarEntradasPorApartamentoDoUsuario([FromQuery] int usuarioId)
+        {
+            try
+            {
+                if (usuarioId <= 0)
+                {
+                    return BadRequest(new { mensagem = "O ID do usuário é obrigatório e deve ser válido!" });
+                }
+
+                var usuarioLogado = await _context.Usuarios!
+                    .FirstOrDefaultAsync(u => u.UsuarioId == usuarioId);
+
+                if (usuarioLogado == null)
+                {
+                    return NotFound(new { mensagem = "Usuário não encontrado!" });
+                }
+
+                var apartamentoId = usuarioLogado.ApartamentoId;
+
+                var entradas = await _context.AcessoEntradaVisitantes!
+                    .Include(e => e.Visitante)
+                    .Include(e => e.Usuario)
+                        .ThenInclude(u => u.Apartamento)
+                    .Where(e => e.Usuario!.ApartamentoId == apartamentoId)
+                    .OrderByDescending(e => e.DataHoraEntrada)
+                    .Select(e => new
+                    {
+                        id = e.Id,
+                        idVisitante = e.VisitanteId,
+                        nomeVisitante = e.Visitante!.Nome,
+                        documentoVisitante = e.Visitante!.Documento,
+                        idMorador = e.UsuarioId,
+                        nomeMorador = e.Usuario!.Nome,
+                        idApartamento = e.Usuario!.ApartamentoId,
+                        apartamento = e.Usuario!.Apartamento!.Numero,
+                        bloco = e.Usuario!.Apartamento!.Bloco,
+                        dataEntrada = e.DataHoraEntrada
+                    })
+                    .ToListAsync();
+
+                if (entradas.Count == 0)
+                {
+                    return NotFound(new { mensagem = "Nenhuma entrada de visitante encontrada para o apartamento deste usuário!" });
                 }
 
                 return Ok(entradas);
