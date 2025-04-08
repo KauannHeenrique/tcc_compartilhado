@@ -51,6 +51,11 @@ namespace condominio_API.Controllers
                     DataHoraEntrada = DateTime.Now
                 };
 
+                if (!qrCode.TipoQRCode) // altero o status do qrcode no banco para nao ser usado novamente 
+                {
+                    qrCode.Status = false;
+                }
+
                 _context.AcessoEntradaVisitantes!.Add(novaEntrada);
                 await _context.SaveChangesAsync();
 

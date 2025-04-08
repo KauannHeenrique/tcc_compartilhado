@@ -59,6 +59,7 @@ namespace condominio_API.Controllers
                 var qrCode = qrGenerator.CreateQrCode(qrCodeData, QRCodeGenerator.ECCLevel.Q);
                 var qrCodeImage = new QRCode(qrCode).GetGraphic(20);
                 novoQRCode.QrCodeImagem = qrCodeImage.ToByteArray();
+                novoQRCode.QrCodeData = qrCodeData;
 
                 _context.QRCodesTemp!.Add(novoQRCode);
                 await _context.SaveChangesAsync();
