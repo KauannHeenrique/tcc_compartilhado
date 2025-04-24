@@ -21,7 +21,7 @@ namespace condominio_API.Controllers
         }
 
         [HttpPost("RegistrarEntrada")]
-        public async Task<ActionResult<AcessoEntradaMorador>> RegistrarEntrada([FromBody] EntradaMoradorRequest entradaMoradorReq)
+        public async Task<ActionResult<MqttService>> RegistrarEntrada([FromBody] EntradaMoradorRequest entradaMoradorReq)
         {
             try
             {
@@ -39,7 +39,7 @@ namespace condominio_API.Controllers
                     return BadRequest(new { mensagem = "TAG não cadastrada!" });
                 }
 
-                var novaEntrada = new AcessoEntradaMorador
+                var novaEntrada = new MqttService
                 {
                     UsuarioId = usuario.UsuarioId,
                     DataHoraEntrada = DateTime.Now

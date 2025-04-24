@@ -11,7 +11,7 @@ namespace condominio_API.Data
         {
         }
 
-        public DbSet<AcessoEntradaMorador> AcessoEntradaMoradores { get; set; }
+        public DbSet<MqttService> AcessoEntradaMoradores { get; set; }
         public DbSet<AcessoEntradaVisitante> AcessoEntradaVisitantes { get; set; }
         public DbSet<Apartamento> Apartamentos { get; set; }
         public DbSet<Notificacao> Notificacoes { get; set; }
@@ -21,7 +21,7 @@ namespace condominio_API.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<AcessoEntradaMorador>()
+            modelBuilder.Entity<MqttService>()
                 .HasOne(a => a.Usuario)
                 .WithMany()
                 .HasForeignKey(a => a.UsuarioId);

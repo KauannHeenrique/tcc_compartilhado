@@ -3,7 +3,7 @@
 
     namespace condominio_API.Models
     {
-        public class AcessoEntradaMorador
+        public class MqttService
         {
             [Key]
             [DatabaseGenerated(DatabaseGeneratedOption.Identity)]

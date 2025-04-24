@@ -16,6 +16,12 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+var mqttListener = app.Services.GetRequiredService<MqttService>();
+await mqttListener.StartAsync();
+
+builder.Services.AddSingleton<MqttService>();
+
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
